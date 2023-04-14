@@ -1,0 +1,59 @@
+[bits 16]
+[org 0x7c00]
+KERNEL_ADDRESS equ 0x1000
+mov[BOOT_DRIVE],dl
+mov bp,0x9000
+mov sp,bp
+call disk_test
+jmp test_success
+disk_test:
+pusha
+mov AH,0x02
+mov AL,0x01
+mov BX,KERNEL_ADDRESS
+mov CH,0x00
+mov CL,0x01
+mov DH,0x00
+mov DL,[BOOT_DRIVE]
+int 0x13
+jc disk_read_error
+cmp AL,0x01
+jne disk_sector_error
+popa
+ret
+disk_sector_error:
+        mov BX, disk_sector_error_message
+        call print_string
+        jmp done
+disk_read_error:
+mov BX,disk_read_error_message
+call print_string
+jmp done
+test_success:
+cmp byte [KERNEL_ADDRESS +512-1],0xaa
+jne disk_sector_error
+mov BX,success_error
+mov BX,success_message
+call print_string
+jmp done
+print_string:
+pusha
+mov AH,0x0e
+loop:
+mov AL,[bx]
+cmp AL,0
+je endloop
+int 10h
+add bx,1
+jmp loop
+endloop:
+popa
+ret
+done:
+jmp $
+BOOT_DRIVE db 0
+disk_read_error_message db "error reading disk",0
+disk_sectro_error_message db"#of scetors read unexpected"
+success_message db "It worked!", 0
+times 510-($-$$) db 0
+dw 0xAA55
